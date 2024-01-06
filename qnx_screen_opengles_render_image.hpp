@@ -72,8 +72,15 @@ private:
 	GLuint program_ = 0;
 	unsigned int vbo_ = 0, vao_ = 0;
 private:
-    qnx_screen_opengles_render_image() = default;
+    qnx_screen_opengles_render_image() {
+		if (false == init()) {
+			LOG_E("opengles render init failed!");
+        	exit(0);
+		}
+		LOG_I("opengles render init success!");
+	}
     virtual ~qnx_screen_opengles_render_image() {
+		uninit();
     }
 public:
     static qnx_screen_opengles_render_image& get_instance() {
@@ -336,7 +343,7 @@ private:
 			// if we get to this point it means that we've matched all our criteria and we can
 			// stop searching
 			egl_conf_attr_sel_.config_id = egl_configs[i];
-			LOG_I("egl configure select:%d success!", egl_conf_attr_sel_.config_id);
+			LOG_I("egl configure select:%u success!", egl_conf_attr_sel_.config_id);
 			return true;
 		}
 		return false; 

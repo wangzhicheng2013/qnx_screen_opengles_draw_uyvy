@@ -15,10 +15,6 @@ int main() {
     }
     OPENGLES_RENDER.set_image_scale(screen_width, screen_height);
     OPENGLES_RENDER.set_image_format(); // default UYVY
-    if (false == OPENGLES_RENDER.init()) {
-        LOG_E("opengles render init failed!");
-        return -1;
-    }
     int size = OPENGLES_RENDER.get_image_size();
     unsigned char* image = (unsigned char*)malloc(size);
     if (nullptr == image) {
@@ -37,7 +33,6 @@ int main() {
     OPENGLES_RENDER.render_image(image);
     sleep(5);
     free(image);
-    OPENGLES_RENDER.uninit();
     
     return 0;
 }
