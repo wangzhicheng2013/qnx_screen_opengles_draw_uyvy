@@ -13,9 +13,8 @@ int main() {
         LOG_E("qnx screen context init failed:%d", error);
         return -1;
     }
-    OPENGLES_RENDER.set_image_scale(screen_width, screen_height);
-    OPENGLES_RENDER.set_image_format(); // default UYVY
-    int size = OPENGLES_RENDER.get_image_size();
+    qnx_screen_opengles_render_image render(screen_width, screen_height);
+    int size = render.get_image_size();
     unsigned char* image = (unsigned char*)malloc(size);
     if (nullptr == image) {
         return -1;
@@ -30,7 +29,7 @@ int main() {
     } 
     fread(image, size, 1, fp);
     fclose(fp);
-    OPENGLES_RENDER.render_image(image);
+    render.render_image(image);
     sleep(5);
     free(image);
     

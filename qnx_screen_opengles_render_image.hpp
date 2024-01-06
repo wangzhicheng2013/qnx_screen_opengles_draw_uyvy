@@ -59,8 +59,8 @@ static const float vertices[] = {
 	
 class qnx_screen_opengles_render_image {
 private:
-    int image_width_ = 1280;
-    int image_height_ = 800;
+    int image_width_ = 1920;
+    int image_height_ = 1080;
     uint8_t image_format_ = UYVY;
     egl_conf_attr egl_conf_attr_sel_;
 	EGLDisplay egl_disp_ = EGL_NO_DISPLAY;
@@ -71,8 +71,14 @@ private:
 	GLuint fragment_shader_ = 0;
 	GLuint program_ = 0;
 	unsigned int vbo_ = 0, vao_ = 0;
-private:
-    qnx_screen_opengles_render_image() {
+	GLuint texid_ = 0;
+	int location_ = -1;
+public:
+    qnx_screen_opengles_render_image(int width = 1920, 
+									 int height = 1080, 
+									 uint8_t format = UYVY) : image_width_(width),
+									 						   image_height_(height),
+															   image_format_(format) {
 		if (false == init()) {
 			LOG_E("opengles render init failed!");
         	exit(0);
@@ -83,17 +89,6 @@ private:
 		uninit();
     }
 public:
-    static qnx_screen_opengles_render_image& get_instance() {
-        static qnx_screen_opengles_render_image instance;
-        return instance;
-    }
-    inline void set_image_scale(int width, int height) {
-        image_width_ = width;
-        image_height_ = height;
-    }
-	inline void set_image_format(uint8_t format = UYVY) {
-		image_format_ = format;
-	}
     inline int get_image_size() {
         if (UYVY == image_format_) {
             return 2 * image_width_ * image_height_;
@@ -130,6 +125,18 @@ public:
 			return false;
 		}
 		set_vbo_vao();
+		make_texid();
+		if (false == get_location()) {
+			return false;
+		}
+		glBindTexture(GL_TEXTURE_2D, 0);
+		glUseProgram(program_);
+		glBindVertexArray(vao_); // seeing as we only have a single VAO there's no need to bind it every time, but we'll do so to keep things a bit more organized
+		glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
+		glClear(GL_COLOR_BUFFER_BIT);
+		glUniform1i(location_, 0);
+		glActiveTexture(GL_TEXTURE0);
+		glBindTexture(GL_TEXTURE_2D, texid_);
 		return true;
 	}
 	void uninit() {
@@ -159,6 +166,7 @@ public:
 			vbo_= 0;
 			LOG_I("glDeleteBuffers!");
 		}
+		glDeleteTextures(1, &texid_);
 		if (egl_disp_ != EGL_NO_DISPLAY && egl_surf_ != EGL_NO_SURFACE) {
 			eglDestroySurface(egl_disp_, egl_surf_);
 			egl_surf_ = EGL_NO_SURFACE;
@@ -199,31 +207,29 @@ public:
 		}
 		return true;
 	}
-	void render_image(unsigned char* image) {
-		GLuint uyvy_texid = 0;
-		glGenTextures(1, &uyvy_texid);
-		glBindTexture(GL_TEXTURE_2D, uyvy_texid);
+	void make_texid() {
+		glGenTextures(1, &texid_);
+		glBindTexture(GL_TEXTURE_2D, texid_);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+	}
+	bool get_location() {
+		if (UYVY == image_format_) {
+			location_ = glGetUniformLocation(program_, "uyvySam");
+			if (location_ < 0) {
+				LOG_E("get uyvy location failed!");
+				return false;
+			}
+		}
+		return true;
+	}
+	void render_image(unsigned char* image) {
 		if (UYVY == image_format_) {
 			glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, image_width_ >> 1, image_height_, 0, GL_RGBA, GL_UNSIGNED_BYTE, image);
 		}
-		glBindTexture(GL_TEXTURE_2D, 0);
-		int location = 0;
-		if (UYVY == image_format_) {
-			location = glGetUniformLocation(program_, "uyvySam");
-		}
-		glUseProgram(program_);
-		glBindVertexArray(vao_); // seeing as we only have a single VAO there's no need to bind it every time, but we'll do so to keep things a bit more organized
-		glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
-		glClear(GL_COLOR_BUFFER_BIT);
-		glUniform1i(location, 0);
-		glActiveTexture(GL_TEXTURE0);
-		glBindTexture(GL_TEXTURE_2D, uyvy_texid);
 		glDrawArrays(GL_TRIANGLE_FAN, 0, 4);
-		glBindTexture(GL_TEXTURE_2D, 0);
 		// post changes 
 		int ret = eglSwapBuffers(egl_disp_, egl_surf_);
 		if (EGL_FALSE == ret) {
@@ -450,4 +456,3 @@ private:
     	glBindVertexArray(0);
 	}
 };
-#define OPENGLES_RENDER qnx_screen_opengles_render_image::get_instance()
